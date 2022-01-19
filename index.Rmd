@@ -280,3 +280,4 @@ df <- tibble(
 
 ```
 
+![](https://datavizblog.files.wordpress.com/2013/05/map-full-size1.png)
