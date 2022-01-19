@@ -1,0 +1,280 @@
+---
+title: "Creating good graphics"
+subtitle: "RASP III"
+author: "Matthew Shane Loop, PhD"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+---
+
+```{r setup, include=FALSE}
+library(tufte)
+# invalidate cache when the tufte version changes
+knitr::opts_chunk$set(cache.extra = packageVersion('tufte'), echo=FALSE, message=FALSE, warning = FALSE)
+options(htmltools.dir.version = FALSE)
+```
+
+# Learning objectives
+
+1. State the purpose of a graph.
+2. Pick the right type of plot for the type of data you have.
+
+# Primary purpose of a graph
+
+> The primary purpose of a graph is to help the reader learn about your data as quickly and accurately as possible.
+
+There are ways of making a graph that slow a reader down.
+
+![](http://www.theusrus.de/Blog-files/pie_chart.jpg)
+
+*What is the fourth most common suggested edit?*
+
+
+![](https://thumbor.forbes.com/thumbor/590x0/https%3A%2F%2Fblogs-images.forbes.com%2Fnaomirobbins%2Ffiles%2F2012%2F01%2FFig1_17Jan12.jpg)
+
+*What company had the 4th highest revenue in 2010?*
+
+There are ways of making a graph that distort how accurately you view the relationships.
+
+![](https://cdn-images-1.medium.com/max/1600/1*vvPPSGIWoyX9iRospeZxMw.png)
+
+How many percentage points higher is those with an A and 60-90% attendance vs. those with a D and <60% attendance?
+
+# Pick the right type of plot for the type of data you have
+
+*For this section, we will switch between the `gapminder` dataset, which contains information such as gross domestic product, life expectancy, and fertility on as many countries as possible from 1960 to 2016, and the Framingham Heart Study dataset, the first major cohort study on heart disease started in 1948.*
+
+## Univariate graphs
+
+**Continuous variables**
+
+```{r, include = FALSE}
+library(tidyverse)
+library(dslabs)
+library(ggthemes)
+
+g_df <- as_tibble(gapminder)
+theme_set(theme_tufte())
+
+library(haven)
+fram <- read_sas("../../../OneDrive - University of North Carolina at Chapel Hill/teaching/FRAMINGHAM_teaching_2019a/sas/frmgham2.sas7bdat") %>%
+  filter(PERIOD == 1)
+```
+
+Histogram:
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = life_expectancy)) +
+  geom_histogram()
+```
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = life_expectancy)) +
+  geom_histogram(bins = 100)
+```
+
+Density plot:
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = life_expectancy)) +
+  geom_density()
+```
+
+**Categorical variables**
+
+```{r}
+g_df %>%
+  ggplot() +
+  geom_bar(mapping = aes(y = continent, x = after_stat(count)), stat = "count")
+```
+
+```{r}
+g_df %>%
+  ggplot() +
+  geom_point(mapping = aes(y = continent, x = after_stat(count)), stat = "count")
+```
+
+## Bivariate graphs
+
+**Two categorical variables**
+
+```{r}
+fram %>%
+  mutate(educ = factor(educ) %>% fct_recode("Graduated high school" = "1", "Some college" = "2", "Graduated college" = "3", "Graduate degree" = "4")) %>%
+  ggplot() +
+  geom_bar(aes(x = factor(CURSMOKE) %>% fct_recode("Current smoker" = "1", "Past or never smoker" = "0" ), fill = factor(educ)), position = "dodge") +
+  xlab("") +
+  scale_fill_viridis_d(name = "Education category")
+```
+
+```{r}
+fram %>%
+count(PREVHYP, BPMEDS) %>%  
+  ggplot(mapping = aes(x = factor(PREVHYP) %>% fct_recode("Normotensive" = "0", "Hypertensive" = "1"), y = factor(BPMEDS) %>% fct_recode("Taking BP meds" = "1", "Not taking BP meds" = "0"))) +
+    geom_tile(mapping = aes(fill = n)) +
+  labs(
+    x = "",
+    y = ""
+  )
+```
+
+
+**One categorical, one continuous variable**
+
+Continuous plots, but by color for categorical variable:
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = life_expectancy, color = continent)) +
+  geom_density() +
+  scale_color_viridis_d()
+```
+
+Summaries of continuous variable, by categorical variable:
+
+```{r}
+g_df %>%
+  group_by(region) %>%
+  summarise(
+    mean_le = mean(life_expectancy)
+  ) %>%
+  ggplot(aes(x = mean_le, y = factor(region) %>% fct_reorder(mean_le))) +
+  geom_point() +
+  xlab("Mean life expectancy") +
+  ylab("Region")
+```
+
+```{r}
+g_df %>%
+  group_by(region) %>%
+  mutate(mean_le = mean(life_expectancy)) %>%
+  ggplot(aes(x = life_expectancy, y = factor(region) %>% fct_reorder(mean_le))) +
+  geom_boxplot() +
+  xlab("Mean life expectancy") +
+  ylab("Region")
+```
+
+**Two continuous variables**
+
+```{r}
+fram %>%
+  ggplot(aes(x = TOTCHOL, y = SYSBP)) +
+  geom_point()
+```
+
+**Two continuous variables, grouped by a third variable**
+```{r}
+fram %>%
+  ggplot(aes(x = TOTCHOL, y = SYSBP, color = factor(CURSMOKE)%>% fct_recode("Current smoker" = "1", "Past or never smoker" = "0" ))) +
+  geom_point(size = 0.1) +
+  scale_color_colorblind(name = "")
+```
+
+```{r}
+fram %>%
+  mutate(CURSMOKE = factor(CURSMOKE)%>% fct_recode("Current smoker" = "1", "Past or never smoker" = "0" )) %>%
+  ggplot(aes(x = TOTCHOL, y = SYSBP)) +
+  geom_point(size = 0.1) +
+  facet_wrap(~ CURSMOKE)
+```
+
+```{r}
+fram %>%
+  mutate(CURSMOKE = factor(CURSMOKE)%>% fct_recode("Current smoker" = "1", "Past or never smoker" = "0" )) %>%
+  ggplot(aes(x = TOTCHOL, y = SYSBP, color = AGE)) +
+  geom_point(size = 0.1) +
+  facet_wrap(~ CURSMOKE)
+```
+
+> All graphs basically show one or two variables and how they vary according to a third variable.
+
+> The fundamental analytical act in statistical reasoning is to answer the question "Compared with what?"^[Edward Tufte, _Beautiful Evidence_, p. 127]
+
+```{r, include = FALSE}
+
+# ranking graphs activity
+df <- fram %>%
+  mutate(age_c = Hmisc::cut2(AGE, g = 5))
+
+p1 <- df %>%
+  ggplot(aes(x = SYSBP, y = TOTCHOL, color = BMI)) +
+  geom_point() +
+  labs(
+    x = "Sytolic blood pressure",
+    y = "Total cholesterol",
+    title = "Relationship between total cholesterol and systolic blood pressure by age"
+  ) +
+  facet_wrap(~age_c)
+ggsave("p1.png", p1, dpi = 200, width = 800, height = 800, units = "px")
+
+p2 <- df %>%
+  ggplot(aes(x = SYSBP, y = TOTCHOL, color = BMI)) +
+  geom_point() +
+  labs(
+    x = "Sytolic blood pressure",
+    y = "Total cholesterol",
+    title = "Relationship between total cholesterol and\nsystolic blood pressure by age"
+  ) +
+  facet_wrap(~age_c) +
+  scale_color_steps(low = "red", high = "green")
+ggsave("p2.png", p2, dpi = 200, width = 800, height = 800, units = "px")
+
+p3 <- df %>%
+  ggplot(aes(x = SYSBP, y = TOTCHOL, color = BMI)) +
+  geom_point(size = 4) +
+  labs(
+    x = "Sytolic blood pressure",
+    y = "Total cholesterol",
+    title = "Relationship between total cholesterol and\nsystolic blood pressure by age"
+  ) +
+  facet_wrap(~age_c) +
+  scale_color_steps(low = "red", high = "green")
+ggsave("p3.png", p3, dpi = 200, width = 800, height = 800, units = "px")
+
+p4 <- df %>%
+  ggplot(aes(x = SYSBP, y = TOTCHOL, color = BMI)) +
+  geom_point(size = 4) +
+  labs(
+    x = "Sytolic blood pressure",
+    y = "Total cholesterol",
+    title = "Relationship between total cholesterol and\nsystolic blood pressure by age"
+  ) +
+  facet_wrap(~age_c) +
+  scale_color_steps(low = "red", high = "green") +
+  theme(
+    plot.background = element_rect(fill = "light blue")
+  )
+ggsave("p4.png", p4, dpi = 200, width = 800, height = 800, units = "px")
+
+p5 <- df %>%
+  ggplot(aes(x = SYSBP, y = TOTCHOL, color = BMI)) +
+  geom_point(size = 4) +
+  labs(
+    x = "Sytolic blood pressure",
+    y = "Total cholesterol",
+    title = "Relationship between total cholesterol and\nsystolic blood pressure by age"
+  ) +
+  facet_wrap(~age_c) +
+  scale_color_steps(low = "red", high = "green") +
+  theme(
+    plot.background = element_rect(fill = "light blue"),
+    panel.grid = element_line(color = "hot pink")
+  )
+ggsave("p5.png", p5, dpi = 200, width = 800, height = 800, units = "px")
+
+# pick the exploratory data analyses you might want to try
+
+# Assume we have a dataset with one continuous variable (systolic blood pressure), two categorical variables (whether they are taking treatment and whether the blood pressure is controlled).
+set.seed(982345)
+n <- 100
+df <- tibble(
+  sbp = rnorm(n, 120, 25) %>% round(),
+  treated = rbinom(n, 1, 0.3),
+  controlled = if_else(sbp < 130, 1, 0)
+)
+
+```
+
